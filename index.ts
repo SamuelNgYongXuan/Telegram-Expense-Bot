@@ -13,17 +13,12 @@ const bot = new Bot(Deno.env.get("BOT_TOKEN") || "");
 
 // Default categories
 const DEFAULT_CATEGORIES = [
-  "🍔 Food",
+  "🍔 Food & Drinks",
   "🚗 Transport", 
-  "🏠 Housing",
   "🎬 Entertainment",
   "🛒 Shopping",
+  "👔 Apparals",
   "💊 Healthcare",
-  "📚 Education",
-  "💼 Work",
-  "✈️ Travel",
-  "📱 Bills",
-  "🎁 Gifts",
   "💰 Other"
 ];
 
