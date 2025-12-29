@@ -22,6 +22,67 @@ const DEFAULT_CATEGORIES = [
   "💰 Other"
 ];
 
+// Singapore timezone offset in minutes
+const SG_OFFSET = 8 * 60; // UTC+8
+
+// Helper: Convert UTC date to Singapore time
+function toSingaporeTime(date: Date): Date {
+  return new Date(date.getTime() + SG_OFFSET * 60 * 1000);
+}
+
+// Helper: Get start of day in Singapore, return as UTC for database query
+function getStartOfDaySG(): Date {
+  const now = new Date();
+  const sgTime = toSingaporeTime(now);
+  
+  // Set to start of day in SG time
+  const startOfDaySG = new Date(Date.UTC(
+    sgTime.getUTCFullYear(),
+    sgTime.getUTCMonth(),
+    sgTime.getUTCDate(),
+    0, 0, 0, 0
+  ));
+  
+  // Convert back to UTC for database query
+  return new Date(startOfDaySG.getTime() - SG_OFFSET * 60 * 1000);
+}
+
+// Helper: Get start of month in Singapore, return as UTC for database query
+function getStartOfMonthSG(): Date {
+  const now = new Date();
+  const sgTime = toSingaporeTime(now);
+  
+  // Set to start of month in SG time
+  const startOfMonthSG = new Date(Date.UTC(
+    sgTime.getUTCFullYear(),
+    sgTime.getUTCMonth(),
+    1,
+    0, 0, 0, 0
+  ));
+  
+  // Convert back to UTC for database query
+  return new Date(startOfMonthSG.getTime() - SG_OFFSET * 60 * 1000);
+}
+
+// Helper: Format date in Singapore timezone
+function formatDateSG(date: Date): string {
+  const sgTime = toSingaporeTime(date);
+  return sgTime.toLocaleDateString('en-SG');
+}
+
+// Helper: Format time in Singapore timezone
+function formatTimeSG(date: Date): string {
+  const sgTime = toSingaporeTime(date);
+  return sgTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+// Helper: Get month name in Singapore timezone
+function getMonthNameSG(): string {
+  const now = new Date();
+  const sgTime = toSingaporeTime(now);
+  return sgTime.toLocaleString('en-SG', { month: 'long' });
+}
+
 // Helper: Get or create user (with upsert for speed)
 async function getOrCreateUser(telegramUserId: string) {
   const { data: user } = await supabase
@@ -115,8 +176,8 @@ bot.command("expenses", async (ctx) => {
   let message = "📊 Your Recent Expenses:\n\n";
   
   for (const exp of expenses) {
-    const date = new Date(exp.created_at).toLocaleDateString();
-    message += `${date} - ${exp.amount}\n`;
+    const date = formatDateSG(new Date(exp.created_at));
+    message += `${date} - $${exp.amount}\n`;
     message += `   ${exp.category} • ${exp.description}\n\n`;
   }
 
@@ -130,8 +191,7 @@ bot.command("day", async (ctx) => {
 
   const user = await getOrCreateUser(telegramUserId);
   
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  const startOfDay = getStartOfDaySG();
 
   const { data: expenses } = await supabase
     .from("expense")
@@ -146,12 +206,12 @@ bot.command("day", async (ctx) => {
 
   const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
 
-  let message = `📅 Today's Expenses (${new Date().toLocaleDateString()})\n\n`;
+  let message = `📅 Today's Expenses (${formatDateSG(new Date())})\n\n`;
   message += `Total: $${total.toFixed(2)}\n`;
   message += `Transactions: ${expenses.length}\n\n`;
   
   expenses.forEach(exp => {
-    const time = new Date(exp.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const time = formatTimeSG(new Date(exp.created_at));
     message += `${time} - $${exp.amount}\n`;
     message += `   ${exp.category} • ${exp.description}\n\n`;
   });
@@ -166,9 +226,7 @@ bot.command("month", async (ctx) => {
 
   const user = await getOrCreateUser(telegramUserId);
   
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
+  const startOfMonth = getStartOfMonthSG();
 
   const { data: expenses } = await supabase
     .from("expense")
@@ -188,7 +246,7 @@ bot.command("month", async (ctx) => {
     byCategory[exp.category] = (byCategory[exp.category] || 0) + parseFloat(exp.amount);
   });
 
-  let message = `📈 Monthly Summary (${new Date().toLocaleString('default', { month: 'long' })})\n\n`;
+  let message = `📈 Monthly Summary (${getMonthNameSG()})\n\n`;
   message += `Total: $${total.toFixed(2)}\n`;
   message += `Transactions: ${expenses.length}\n\n`;
   message += "By Category:\n";
@@ -406,7 +464,7 @@ bot.on("callback_query:data", async (ctx) => {
     } else {
       await ctx.editMessageText(
         `✅ Expense saved!\n\n` +
-        `💵 ${pending.amount}\n` +
+        `💵 $${pending.amount}\n` +
         `📝 ${pending.description}\n` +
         `📁 ${category}`
       );
